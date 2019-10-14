@@ -9,7 +9,8 @@ const sendWelcomeEmail = (email, name) => {
     to: email,
     from: 'iamkapilgarg@gmail.com',
     subject: 'Welcome to the Task App',
-    text: `Hi, Welcome to the Task App, ${name} <html><body><table style="width:100%">
+    text: `Hi, Welcome to the Task App, ${name}`,
+    html: `<html><body><table style="width:100%">
     <tr>
       <th>Firstname</th>
       <th>Lastname</th>
