@@ -14,14 +14,12 @@ router.get('/users/me', auth, async(req, res) => {
 
 router.post('/users', async(req, res) => {
     const user = new User(req.body)
-    console.log(req.body)
     try {
         await user.save()
         sendWelcomeEmail(user.email, user.name)
         const token = await user.generateAuthToken()
         res.status(201).send({ user, token })
     } catch (e) {
-        console.log(e)
         res.status(400).send(e)
     }
 })
@@ -30,10 +28,8 @@ router.patch('/users/me', auth, async(req, res) => {
     const updates = Object.keys(req.body)
     const allowedUpdates = ['name', 'email', 'password', 'age']
     const isValidOperation = updates.every((update) => {
-        console.log(update)
         return allowedUpdates.includes(update)
     })
-    console.log(isValidOperation)
     if (!isValidOperation) {
         return res.status(400).send({ error: 'Invalid Udates!' })
     }

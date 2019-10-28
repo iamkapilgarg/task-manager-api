@@ -1,40 +1,38 @@
 const request = require('supertest')
 const app = require('../src/app')
 const User = require('../src/models/user')
-const Mongoose = require('mongoose')
-const jwt = require('jsonwebtoken')
+const { userOne, userOneId, setupDatabase } = require('../tests/fixtures/db')
 
-const userOneId = new Mongoose.Types.ObjectId
-const userOne = {
-    _id: userOneId,
-    name: 'Mike',
-    email: 'mike@example.io',
-    age: 30,
-    password: 'kaku7040',
-    tokens: [{
-        token: jwt.sign({ _id: userOneId }, process.env.JWT_SECRET)
-    }]
-}
-
-beforeEach(async() => {
-    await User.deleteMany()
-    await new User(userOne).save()
-})
+beforeEach(setupDatabase)
 
 test('Should I sign up a new user', async() => {
-    await request(app).post('/users').send({
+    const response = await request(app).post('/users').send({
         name: 'Andrew',
         email: 'andrew2@med.io',
         age: 30,
         password: 'kaku7040'
     }).expect(201)
+
+    const user = await User.findById(response.body.user._id)
+    expect(user).not.toBeNull()
+
+    expect(response.body).toMatchObject({
+        user: {
+            name: 'Andrew',
+            email: 'andrew2@med.io'
+        },
+        token: user.tokens[0].token
+    })
+    expect(user.password).not.toBe('kaku7040')
 })
 
 test('Shuould login existing user', async() => {
-    await request(app).post('/users/login').send({
+    const response = await request(app).post('/users/login').send({
         email: userOne.email,
         password: userOne.password
     }).expect(200)
+    const user = await User.findById(response.body.user._id)
+    expect(response.body.token).toBe(user.tokens[1].token)
 })
 
 test('Shuould not login non-existing user', async() => {
@@ -65,6 +63,9 @@ test('Shuould delete account of a user', async() => {
         .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
         .send()
         .expect(200)
+
+    const user = await User.findById(userOneId)
+    expect(user).toBeNull()
 })
 
 test('Shuould not delete account of a unauthorized user', async() => {
@@ -72,4 +73,40 @@ test('Shuould not delete account of a unauthorized user', async() => {
         .delete('/users/me')
         .send()
         .expect(401)
+})
+
+test('Shuould upload avatar image', async() => {
+    await request(app)
+        .post('/users/me/avatar')
+        .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
+        .attach('avatar', 'tests/fixtures/profile-pic.jpeg')
+        .expect(200)
+
+    const user = await User.findById(userOneId)
+    expect(user.avatar).toEqual(expect.any(Buffer))
+})
+
+test('Shuould update valid user details', async() => {
+    await request(app)
+        .patch('/users/me')
+        .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
+        .send({
+            name: 'kapil'
+        })
+        .expect(200)
+
+    const user = await User.findById(userOneId)
+    expect(user.name).toEqual('kapil')
+})
+
+test('Shuould not update invalid user details', async() => {
+    await request(app)
+        .patch('/users/me')
+        .send({
+            name: 'kapil'
+        })
+        .expect(401)
+
+    const user = await User.findById(userOneId)
+    expect(user.name).not.toEqual('kapil')
 })
